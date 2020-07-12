@@ -20,8 +20,8 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-import camera_utils
-import rasterize_triangles
+import thirdParty.tf_mesh_renderer.mesh_renderer.camera_utils
+import thirdParty.tf_mesh_renderer.mesh_renderer.rasterize_triangles
 
 
 def phong_shader(normals,
@@ -61,7 +61,7 @@ def phong_shader(normals,
         pixel_positions.
     specular_colors: a 4D float32 tensor with shape [batch_size, image_height,
         image_width, 3]. The inner dimension is the specular RGB coefficients at
-        a pixel in the range [0, 1]. If None, assumed to be tf.zeros()
+        a pixel in the range [0, 1]. If None, assumed to be tf_render.zeros()
     shininess_coefficients: A 3D float32 tensor that is broadcasted to shape
         [batch_size, image_height, image_width]. The inner dimension is the
         shininess coefficient for the object at a pixel. Dimensions that are
@@ -69,7 +69,7 @@ def phong_shader(normals,
         also valid input shapes.
     ambient_color: a 2D tensor with shape [batch_size, 3]. The RGB ambient
         color, which is added to each pixel before tone mapping. If None, it is
-        assumed to be tf.zeros().
+        assumed to be tf_render.zeros().
   Returns:
     A 4D float32 tensor of shape [batch_size, image_height, image_width, 4]
     containing the lit RGBA color values for each image at each pixel. Colors
@@ -108,10 +108,9 @@ def phong_shader(normals,
       tf.reduce_sum(
           tf.expand_dims(normals, axis=1) * directions_to_lights, axis=3), 0.0,
       1.0)  # [batch_size, light_count, pixel_count]
-  diffuse_output = tf.expand_dims(
-      diffuse_colors, axis=1) * tf.expand_dims(
-          normals_dot_lights, axis=3) * tf.expand_dims(
-              light_intensities, axis=2)
+  diffuse_output = tf.expand_dims(diffuse_colors, axis=1) * \
+                   tf.expand_dims(normals_dot_lights, axis=3) * \
+                   tf.expand_dims(light_intensities, axis=2)
   diffuse_output = tf.reduce_sum(
       diffuse_output, axis=1)  # [batch_size, pixel_count, 3]
   output_colors = tf.add(output_colors, diffuse_output)
@@ -188,11 +187,11 @@ def tone_mapper(image, gamma):
     [0, 1].
   """
   batch_size = image.shape[0].value
-  corrected_image = tf.pow(image, gamma)
+  corrected_image = tf.pow(tf.maximum(image, 1e-4), gamma)
   image_max = tf.reduce_max(
       tf.reshape(corrected_image, [batch_size, -1]), axis=1)
   scaled_image = tf.divide(corrected_image,
-                           tf.reshape(image_max, [batch_size, 1, 1, 1]))
+                           tf.reshape(image_max, [batch_size, 1, 1, 1]) + 1e-6)
   return tf.clip_by_value(scaled_image, 0.0, 1.0)
 
 
@@ -266,7 +265,7 @@ def mesh_renderer(vertices,
     A 4-D float32 tensor of shape [batch_size, image_height, image_width, 4]
     containing the lit RGBA color values for each image at each pixel. RGB
     colors are the intensity values before tonemapping and can be in the range
-    [0, infinity]. Clipping to the range [0,1] with tf.clip_by_value is likely
+    [0, infinity]. Clipping to the range [0,1] with tf_render.clip_by_value is likely
     reasonable for both viewing and training most scenes. More complex scenes
     with multiple lights should tone map color values for display only. One
     simple tonemapping approach is to rescale color values as x/(1+x); gamma
@@ -368,7 +367,7 @@ def mesh_renderer(vertices,
 
   clip_space_transforms = tf.matmul(perspective_transforms, camera_matrices)
 
-  pixel_attributes = rasterize_triangles.rasterize_triangles(
+  pixel_attributes, alpha = rasterize_triangles.rasterize_triangles(
       vertices, vertex_attributes, triangles, clip_space_transforms,
       image_width, image_height, [-1] * vertex_attributes.shape[2].value)
 

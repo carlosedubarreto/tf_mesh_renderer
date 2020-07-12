@@ -21,11 +21,18 @@ from __future__ import print_function
 import os
 import tensorflow as tf
 
+_curr_path = os.path.abspath(__file__) # /home/..../face
+_cur_dir = os.path.dirname(_curr_path) # ./
+_root_dir = os.path.dirname(_cur_dir) # ./
+_ad_dir = os.path.dirname(_root_dir)
+
+#pointnet = tf_render.load_op_library('/home/jshang/SHANG_Project/Pycharm_Python/DeepLearning_Learn/pointnet2/tf_ops/3d_interpolation/tf_interpolate_so.so')
+
+os.environ['TEST_SRCDIR'] = _ad_dir
 
 rasterize_triangles_module = tf.load_op_library(
     os.path.join(os.environ['TEST_SRCDIR'],
     'tf_mesh_renderer/mesh_renderer/kernels/rasterize_triangles_kernel.so'))
-
 
 # This epsilon should be smaller than any valid barycentric reweighting factor
 # (i.e. the per-pixel reweighting factor used to correct for the effects of
@@ -83,7 +90,7 @@ def rasterize_triangles(vertices, attributes, triangles, projection_matrices,
   if len(vertices.shape) != 3:
     raise ValueError('The vertex buffer must be 3D.')
   batch_size = vertices.shape[0].value
-  vertex_count = vertices.shape[1].value
+  vertex_count = tf.shape(vertices)[1]
 
   # We map the coordinates to normalized device coordinates before passing
   # the scene to the rendering kernel to keep as many ops in tensorflow as
@@ -108,6 +115,9 @@ def rasterize_triangles(vertices, attributes, triangles, projection_matrices,
 
   per_image_uncorrected_barycentric_coordinates = []
   per_image_vertex_ids = []
+
+  # jiaxiang
+  per_image_tri_ids = []
   for im in xrange(vertices.shape[0]):
     barycentric_coords, triangle_ids, _ = (
         rasterize_triangles_module.rasterize_triangles(
@@ -119,8 +129,12 @@ def rasterize_triangles(vertices, attributes, triangles, projection_matrices,
     # Gathers the vertex indices now because the indices don't contain a batch
     # identifier, and reindexes the vertex ids to point to a (batch,vertex_id)
     vertex_ids = tf.gather(triangles, tf.reshape(triangle_ids, [-1]))
-    reindexed_ids = tf.add(vertex_ids, im * vertices.shape[1].value)
+    reindexed_ids = tf.add(vertex_ids, im * tf.shape(vertices)[1])
     per_image_vertex_ids.append(reindexed_ids)
+    per_image_tri_ids.append(triangle_ids)
+
+  # jiaxiang
+  tri_ids = tf.concat(per_image_tri_ids, axis=0) # bs, h, w
 
   uncorrected_barycentric_coordinates = tf.concat(
       per_image_uncorrected_barycentric_coordinates, axis=0)
@@ -174,7 +188,7 @@ def rasterize_triangles(vertices, attributes, triangles, projection_matrices,
   attributes_with_background = (
       alphas * attribute_images + (1.0 - alphas) * background_value)
 
-  return attributes_with_background
+  return attributes_with_background, alphas, tri_ids
 
 
 @tf.RegisterGradient('RasterizeTriangles')

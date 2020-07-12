@@ -49,3 +49,21 @@ If you use this renderer in your research, please cite [this paper](http://opena
   year = {2018}
 }
 ```
+
+"""
+Trouble shooting
+"""
+1. bazel version should near 10.0
+2. "bazel test ..." setup fail
+Question:
+INFO: Analysed 0 targets (4 packages loaded).
+INFO: Found 0 test targets...
+INFO: Elapsed time: 0.313s, Critical Path: 0.00s
+INFO: Build completed successfully, 1 total action
+ERROR: No test targets were found, yet testing was requested
+Answer:
+3. "bazel test ..." fail
+4. D_GLIBCXX_USE_CXX11_ABI=0 what this???
+
+
+

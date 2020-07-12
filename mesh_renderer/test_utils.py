@@ -85,7 +85,7 @@ def expect_image_file_and_render_are_near(test_instance,
   Args:
     test_instance: a python unit test instance.
     sess: a TensorFlow session for decoding the png.
-    baseline_path: path to the reference image on disk.
+    baseline_path: path to the Reference image on disk.
     result_image: the result image, as a numpy array.
     max_outlier_fraction: the maximum fraction of outlier pixels allowed.
     pixel_error_threshold: pixel values are considered to differ if their

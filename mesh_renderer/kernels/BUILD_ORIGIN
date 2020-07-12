@@ -1,0 +1,12 @@
+cc_test(
+    name = "rasterize_triangles_impl_test",
+    srcs = ["rasterize_triangles_impl_test.cc"],
+    data = [
+        "//mesh_renderer/test_data:images",
+    ],
+    deps = [
+        ":rasterize_triangles_impl",
+        "//third_party:lodepng",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
